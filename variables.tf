@@ -33,6 +33,10 @@ variable "dns_server" {
   type        = string
 }
 
+variable "ebs_optimized" {
+  type = bool
+}
+
 variable "ecr_name" {
   description = "Name of the repository in ECR."
   type        = string

@@ -16,7 +16,7 @@ resource "aws_ecr_repository" "service" {
 
 resource "aws_ecs_task_definition" "main" {
   cpu                      = var.cpu
-  depends_on               = ["aws_ecs_cluster.ecs_cluster"]
+  depends_on               = [aws_ecs_cluster.ecs_cluster]
   execution_role_arn       = var.task_execution_role_arn
   family                   = var.task_definition_name
   memory                   = var.memory
@@ -77,8 +77,8 @@ DEFINITION
 
 resource "aws_ecs_service" "ecs_service" {
   cluster                            = aws_ecs_cluster.ecs_cluster.id
-  depends_on                         = ["aws_ecs_task_definition.main"]
-  deployment_minimum_healthy_percent = "50"
+  depends_on                         = [aws_ecs_task_definition.main]
+  deployment_minimum_healthy_percent = 50
   desired_count                      = var.instance_count
   name                               = "${var.environment}-${var.app_name}-svc"
   task_definition                    = "${aws_ecs_task_definition.main.family}:${aws_ecs_task_definition.main.revision}"
@@ -149,11 +149,12 @@ resource "aws_security_group_rule" "ecs_ingress_3000" {
 
 resource "aws_launch_configuration" "instance" {
   associate_public_ip_address = true
-  ebs_optimized               = true
+  ebs_optimized               = var.ebs_optimized
   iam_instance_profile        = var.instance_profile_id
   image_id                    = var.ecs_ami_id
   instance_type               = var.instance_type
   name_prefix                 = "${var.environment}-${var.app_name}-"
+  security_groups             = [aws_security_group.ecs_sg.id]
 
   lifecycle {
     create_before_destroy = true
@@ -161,11 +162,9 @@ resource "aws_launch_configuration" "instance" {
 
   root_block_device {
     delete_on_termination = true
-    volume_size           = "30"
+    volume_size           = 30
     volume_type           = "standard"
   }
-
-  security_groups = [aws_security_group.ecs_sg.id]
 
   user_data = <<EOF
               #!/bin/bash
@@ -178,8 +177,8 @@ resource "aws_launch_configuration" "instance" {
 ###################################################################
 
 resource "aws_autoscaling_group" "asg" {
-  default_cooldown          = "1"
-  depends_on                = ["aws_launch_configuration.instance"]
+  default_cooldown          = 1
+  depends_on                = [aws_launch_configuration.instance]
   health_check_grace_period = 600
   health_check_type         = "EC2" //ELB"
   launch_configuration      = aws_launch_configuration.instance.id
@@ -187,7 +186,7 @@ resource "aws_autoscaling_group" "asg" {
   target_group_arns         = var.tg_arns
   termination_policies      = ["OldestInstance"]
   vpc_zone_identifier       = var.private_subnets
-  wait_for_capacity_timeout = "0"
+  wait_for_capacity_timeout = 0
 
   desired_capacity = var.instance_count
   max_size         = var.max_instance_count
